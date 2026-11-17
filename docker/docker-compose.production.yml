@@ -1,0 +1,156 @@
+version: "3.8"
+
+networks:
+  hrms-internal:
+    driver: bridge
+
+volumes:
+  mariadb-data:
+  sites-data:
+  redis-cache-data:
+  redis-queue-data:
+
+services:
+  mariadb:
+    image: mariadb:10.8
+    container_name: hrms-mariadb
+    restart: always
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+      - --innodb-file-per-table=1
+      - --max-connections=500
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-YourSecureRootPassword123!}
+      MYSQL_DATABASE: ${DB_NAME:-_hrms_db}
+      MYSQL_USER: ${DB_USER:-hrms_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-YourSecureDbPassword123!}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - hrms-internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-YourSecureRootPassword123!}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: hrms-redis-cache
+    restart: always
+    volumes:
+      - redis-cache-data:/data
+    networks:
+      - hrms-internal
+
+  redis-queue:
+    image: redis:7-alpine
+    container_name: hrms-redis-queue
+    restart: always
+    volumes:
+      - redis-queue-data:/data
+    networks:
+      - hrms-internal
+
+  backend:
+    image: frappe/erpnext:v15.0.0
+    container_name: hrms-backend
+    restart: always
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    environment:
+      - SHELL=/bin/bash
+    volumes:
+      - sites-data:/home/frappe/frappe-bench/sites
+      - ..:/home/frappe/frappe-bench/apps/hrms
+    networks:
+      - hrms-internal
+
+  websocket:
+    image: frappe/erpnext:v15.0.0
+    container_name: hrms-websocket
+    restart: always
+    command: node /home/frappe/frappe-bench/apps/frappe/socketio.js
+    depends_on:
+      - backend
+    volumes:
+      - sites-data:/home/frappe/frappe-bench/sites
+    networks:
+      - hrms-internal
+
+  worker-default:
+    image: frappe/erpnext:v15.0.0
+    container_name: hrms-worker-default
+    restart: always
+    command: bench worker --queue default
+    depends_on:
+      - backend
+    volumes:
+      - sites-data:/home/frappe/frappe-bench/sites
+      - ..:/home/frappe/frappe-bench/apps/hrms
+    networks:
+      - hrms-internal
+
+  worker-short:
+    image: frappe/erpnext:v15.0.0
+    container_name: hrms-worker-short
+    restart: always
+    command: bench worker --queue short
+    depends_on:
+      - backend
+    volumes:
+      - sites-data:/home/frappe/frappe-bench/sites
+      - ..:/home/frappe/frappe-bench/apps/hrms
+    networks:
+      - hrms-internal
+
+  worker-long:
+    image: frappe/erpnext:v15.0.0
+    container_name: hrms-worker-long
+    restart: always
+    command: bench worker --queue long
+    depends_on:
+      - backend
+    volumes:
+      - sites-data:/home/frappe/frappe-bench/sites
+      - ..:/home/frappe/frappe-bench/apps/hrms
+    networks:
+      - hrms-internal
+
+  scheduler:
+    image: frappe/erpnext:v15.0.0
+    container_name: hrms-scheduler
+    restart: always
+    command: bench schedule
+    depends_on:
+      - backend
+    volumes:
+      - sites-data:/home/frappe/frappe-bench/sites
+      - ..:/home/frappe/frappe-bench/apps/hrms
+    networks:
+      - hrms-internal
+
+  proxy:
+    image: nginx:alpine
+    container_name: hrms-proxy
+    restart: always
+    depends_on:
+      - backend
+      - websocket
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - sites-data:/var/www/html/sites:ro
+      - ../hrms/public:/var/www/html/assets/hrms:ro
+    networks:
+      - hrms-internal

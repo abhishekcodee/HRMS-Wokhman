@@ -47,9 +47,7 @@
 			marginheight="0"
 			marginwidth="0"
 			style="border: 0"
-			:src="`https://maps.google.com/maps?q=${getCoordinates(props.value).latitude},${
-				getCoordinates(props.value).longitude
-			}&hl=en&z=15&amp;output=embed`"
+			:src="`https://www.openstreetmap.org/export/embed.html?bbox=${getCoordinates(props.value).longitude - 0.005}%2C${getCoordinates(props.value).latitude - 0.005}%2C${getCoordinates(props.value).longitude + 0.005}%2C${getCoordinates(props.value).latitude + 0.005}&layer=mapnik&marker=${getCoordinates(props.value).latitude}%2C${getCoordinates(props.value).longitude}`"
 		>
 		</iframe>
 	</div>

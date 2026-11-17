@@ -1,0 +1,23 @@
+{
+  "db_name": "_hrms_db",
+  "db_password": "YourSecureDbPassword123!",
+  "db_type": "mariadb",
+  "db_host": "mariadb",
+  "db_port": 3306,
+  "redis_cache": "redis://redis-cache:6379",
+  "redis_queue": "redis://redis-queue:6379",
+  "redis_socketio": "redis://redis-cache:6379",
+  "socketio_port": 9000,
+  "developer_mode": 0,
+  "enable_telemetry": 0,
+  "telemetry": 0,
+  "push_relay_server_url": "",
+  "server_script_enabled": 0,
+  "rate_limit": {
+    "limit": 500,
+    "window": 3600
+  },
+  "session_expiry": "06:00",
+  "session_expiry_mobile": "720:00",
+  "allow_cors": "*"
+}

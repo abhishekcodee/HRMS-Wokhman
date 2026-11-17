@@ -14,18 +14,14 @@ def get_country(fields: list | None = None) -> dict:
 	ip = frappe.local.request_ip
 
 	if ip not in country_info:
-		fields = ["countryCode", "country", "regionName", "city"]
-		res = requests.get(
-			"https://pro.ip-api.com/json/{ip}?key={key}&fields={fields}".format(
-				ip=ip, key=frappe.conf.get("ip-api-key"), fields=",".join(fields)
-			)
-		)
-
-		try:
-			country_info[ip] = res.json()
-
-		except Exception:
-			country_info[ip] = {}
+		# Sovereign fallback: use system configured country without transmitting IP to external IP-API services
+		default_country = frappe.db.get_default("country") or ""
+		country_info[ip] = {
+			"countryCode": default_country[:2].upper() if default_country else "",
+			"country": default_country,
+			"regionName": "",
+			"city": "",
+		}
 
 	return country_info[ip]
 

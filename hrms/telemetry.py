@@ -52,7 +52,7 @@ def _skip_context() -> bool:
 
 
 def _should_skip() -> bool:
-	return _skip_context() or not is_enabled()
+	return True
 
 
 def sanitize_properties(properties: dict | None) -> dict:

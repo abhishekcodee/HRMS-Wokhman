@@ -183,8 +183,5 @@ def hide_erpnext() -> bool:
 
 
 def has_subscription(secret_key) -> bool:
-	url = "https://frappecloud.com/api/method/press.api.developer.marketplace.get_subscription_status"
-	response = requests.post(url, data={"secret_key": secret_key}, timeout=5)
-
-	status = response.json().get("message")
-	return True if status == "Active" else False
+	# Disabled external SaaS subscription check for self-hosted sovereign infrastructure
+	return False

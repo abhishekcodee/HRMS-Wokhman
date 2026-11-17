@@ -87,6 +87,9 @@ class FrappePushNotification {
 		if (this.webConfig !== null && this.webConfig !== undefined) {
 			return this.webConfig
 		}
+		if (!FrappePushNotification.relayServerBaseURL) {
+			return null
+		}
 		try {
 			let url = `${FrappePushNotification.relayServerBaseURL}/api/method/notification_relay.api.get_config?project_name=${this.projectName}`
 			let response = await fetch(url)
