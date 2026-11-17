@@ -1,0 +1,11 @@
+{
+  "include": [
+    "hrms"
+  ],
+  "extraPaths": [
+    "c:/HRMS-1/frappe",
+    "c:/HRMS-1/hrms"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}
