@@ -7,7 +7,7 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "[1/3] Ensuring ports 8005 and 8080 are free..." -ForegroundColor Yellow
 $ports = @(8005, 8080)
 foreach ($port in $ports) {
-    Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | Unique | ForEach-Object {
+    Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object {
         Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue
     }
 }
