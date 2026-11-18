@@ -8,6 +8,7 @@ import fs from "fs"
 
 export default defineConfig({
 	server: {
+		host: "0.0.0.0",
 		port: 8080,
 		proxy: getProxyOptions(),
 		allowedHosts: true,
@@ -93,18 +94,15 @@ export default defineConfig({
 
 function getProxyOptions() {
 	const config = getCommonSiteConfig()
-	const webserver_port = config ? config.webserver_port : 8000
-	if (!config) {
-		console.log("No common_site_config.json found, using default port 8000")
-	}
+	const webserver_port = process.env.FRAPPE_PORT || (config ? config.webserver_port : 8005)
+	console.log(`Frappe sovereign backend webserver port: ${webserver_port}`)
 	return {
 		"^/(app|login|api|assets|files|private)": {
 			target: `http://127.0.0.1:${webserver_port}`,
 			ws: true,
+			changeOrigin: true,
 			router: function (req) {
-				const site_name = req.headers.host.split(":")[0]
-				console.log(`Proxying ${req.url} to ${site_name}:${webserver_port}`)
-				return `http://${site_name}:${webserver_port}`
+				return `http://127.0.0.1:${webserver_port}`
 			},
 		},
 	}
@@ -112,8 +110,9 @@ function getProxyOptions() {
 
 function getCommonSiteConfig() {
 	let currentDir = path.resolve(".")
+	let parent = path.resolve(currentDir, "..")
 	// traverse up till we find frappe-bench with sites directory
-	while (currentDir !== "/") {
+	while (currentDir !== "/" && currentDir !== parent) {
 		if (
 			fs.existsSync(path.join(currentDir, "sites")) &&
 			fs.existsSync(path.join(currentDir, "apps"))
@@ -124,7 +123,8 @@ function getCommonSiteConfig() {
 			}
 			return null
 		}
-		currentDir = path.resolve(currentDir, "..")
+		currentDir = parent
+		parent = path.resolve(currentDir, "..")
 	}
 	return null
 }
