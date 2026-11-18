@@ -4,7 +4,7 @@ import { employeeResource } from "./employee"
 import dayjs from "@/utils/dayjs"
 
 const transformLeaveData = (data) => {
-	return data.map((leave) => {
+	return (data || []).map((leave) => {
 		leave.leave_dates = getLeaveDates(leave)
 		leave.doctype = "Leave Application"
 		return leave
@@ -29,7 +29,7 @@ export const getLeaveStatus = (leave) => {
 export const myLeaves = createResource({
 	url: "hrms.api.get_leave_applications",
 	params: {
-		employee: employeeResource.data.name,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
 		limit: 10,
 	},
 	auto: true,
@@ -45,8 +45,8 @@ export const myLeaves = createResource({
 export const teamLeaves = createResource({
 	url: "hrms.api.get_leave_applications",
 	params: {
-		employee: employeeResource.data.name,
-		approver_id: employeeResource.data.user_id,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
+		approver_id: employeeResource.data?.user_id || "Administrator",
 		for_approval: 1,
 		limit: 10,
 	},

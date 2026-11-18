@@ -49,7 +49,7 @@ const transformShiftRequests = (data) =>
 export const myAttendanceRequests = createResource({
 	url: "hrms.api.get_attendance_requests",
 	params: {
-		employee: employeeResource.data.name,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
 		limit: 10,
 	},
 	auto: true,
@@ -59,7 +59,7 @@ export const myAttendanceRequests = createResource({
 	}
 })
 const transformAttendanceRequests = (data) => {
-		return data.map((request) => {
+		return (data || []).map((request) => {
 			request.doctype = "Attendance Request"
 			request.attendance_dates = getDates(request)
 			request.total_attendance_days = getTotalDays(request)
@@ -69,7 +69,7 @@ const transformAttendanceRequests = (data) => {
 export const myShiftRequests = createResource({
 	url: "hrms.api.get_shift_requests",
 	params: {
-		employee: employeeResource.data.name,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
 		limit: 10,
 	},
 	auto: true,
@@ -82,8 +82,8 @@ export const myShiftRequests = createResource({
 export const teamShiftRequests = createResource({
 	url: "hrms.api.get_shift_requests",
 	params: {
-		employee: employeeResource.data.name,
-		approver_id: employeeResource.data.user_id,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
+		approver_id: employeeResource.data?.user_id || "Administrator",
 		for_approval: 1,
 		limit: 10,
 	},
@@ -96,7 +96,7 @@ export const teamShiftRequests = createResource({
 export const teamAttendanceRequests = createResource({
 	url: "hrms.api.get_attendance_requests",
 	params: {
-		employee: employeeResource.data.name,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
 		for_approval: 1,
 		limit: 10,
 	},

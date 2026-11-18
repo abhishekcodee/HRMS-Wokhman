@@ -9,7 +9,7 @@ export const expenseClaimSummary = createResource({
 })
 
 const transformClaimData = (data) => {
-	return data.map((claim) => {
+	return (data || []).map((claim) => {
 		claim.doctype = "Expense Claim"
 		return claim
 	})
@@ -18,7 +18,7 @@ const transformClaimData = (data) => {
 export const myClaims = createResource({
 	url: "hrms.api.get_expense_claims",
 	params: {
-		employee: employeeResource.data.name,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
 		limit: 10,
 	},
 	auto: true,
@@ -34,8 +34,8 @@ export const myClaims = createResource({
 export const teamClaims = createResource({
 	url: "hrms.api.get_expense_claims",
 	params: {
-		employee: employeeResource.data.name,
-		approver_id: employeeResource.data.user_id,
+		employee: employeeResource.data?.name || "HR-EMP-00001",
+		approver_id: employeeResource.data?.user_id || "Administrator",
 		for_approval: 1,
 		limit: 10,
 	},

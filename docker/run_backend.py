@@ -289,6 +289,192 @@ async def get_current_employee_info(request: Request):
 
     return {"message": employee}
 
+# HR Settings
+@app.get("/api/method/hrms.api.get_hr_settings")
+@app.post("/api/method/hrms.api.get_hr_settings")
+async def get_hr_settings():
+    return {
+        "message": {
+            "allow_employee_checkin_from_mobile_app": 1,
+            "allow_geolocation_tracking": 0,
+            "prevent_self_leave_approval": 0,
+            "enable_multi_currency_expense_claim": 1
+        }
+    }
+
+# Attendance Requests
+@app.get("/api/method/hrms.api.get_attendance_requests")
+@app.post("/api/method/hrms.api.get_attendance_requests")
+async def get_attendance_requests(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    employee = data.get("employee", "HR-EMP-00001")
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM `tabAttendance Request` WHERE employee = %s ORDER BY creation desc LIMIT 20", (employee,))
+                rows = cur.fetchall()
+                return {"message": rows}
+    except Exception as e:
+        print(f"Error in get_attendance_requests: {e}")
+        return {"message": []}
+
+# Shift Requests
+@app.get("/api/method/hrms.api.get_shift_requests")
+@app.post("/api/method/hrms.api.get_shift_requests")
+async def get_shift_requests(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    employee = data.get("employee", "HR-EMP-00001")
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM `tabShift Request` WHERE employee = %s ORDER BY creation desc LIMIT 20", (employee,))
+                rows = cur.fetchall()
+                return {"message": rows}
+    except Exception as e:
+        print(f"Error in get_shift_requests: {e}")
+        return {"message": []}
+
+# Leave Applications
+@app.get("/api/method/hrms.api.get_leave_applications")
+@app.post("/api/method/hrms.api.get_leave_applications")
+async def get_leave_applications(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    employee = data.get("employee", "HR-EMP-00001")
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM `tabLeave Application` WHERE employee = %s ORDER BY creation desc LIMIT 20", (employee,))
+                rows = cur.fetchall()
+                return {"message": rows}
+    except Exception as e:
+        print(f"Error in get_leave_applications: {e}")
+        return {"message": []}
+
+# Leave Balance Map
+@app.get("/api/method/hrms.api.get_leave_balance_map")
+@app.post("/api/method/hrms.api.get_leave_balance_map")
+async def get_leave_balance_map():
+    return {
+        "message": {
+            "Casual Leave": {"allocated_leaves": 12, "leaves_taken": 0, "balance_leaves": 12},
+            "Privilege Leave": {"allocated_leaves": 15, "leaves_taken": 0, "balance_leaves": 15},
+            "Sick Leave": {"allocated_leaves": 10, "leaves_taken": 0, "balance_leaves": 10}
+        }
+    }
+
+# Expense Claim Summary
+@app.get("/api/method/hrms.api.get_expense_claim_summary")
+@app.post("/api/method/hrms.api.get_expense_claim_summary")
+async def get_expense_claim_summary():
+    return {
+        "message": {
+            "total_claimed_amount": 0.0,
+            "total_sanctioned_amount": 0.0,
+            "currency": "INR"
+        }
+    }
+
+# Expense Claims
+@app.get("/api/method/hrms.api.get_expense_claims")
+@app.post("/api/method/hrms.api.get_expense_claims")
+async def get_expense_claims(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    employee = data.get("employee", "HR-EMP-00001")
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM `tabExpense Claim` WHERE employee = %s ORDER BY creation desc LIMIT 20", (employee,))
+                rows = cur.fetchall()
+                return {"message": rows}
+    except Exception as e:
+        print(f"Error in get_expense_claims: {e}")
+        return {"message": []}
+
+# Expense Claim Types
+@app.get("/api/method/hrms.api.get_expense_claim_types")
+@app.post("/api/method/hrms.api.get_expense_claim_types")
+async def get_expense_claim_types():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM `tabExpense Claim Type` LIMIT 50")
+                rows = cur.fetchall()
+                if rows:
+                    return {"message": rows}
+    except Exception:
+        pass
+    return {
+        "message": [
+            {"name": "Travel", "claim_type": "Travel"},
+            {"name": "Food & Meals", "claim_type": "Food & Meals"},
+            {"name": "Medical", "claim_type": "Medical"},
+            {"name": "Office Supplies", "claim_type": "Office Supplies"}
+        ]
+    }
+
+# Advance Balance
+@app.get("/api/method/hrms.api.get_advance_balance")
+@app.post("/api/method/hrms.api.get_advance_balance")
+async def get_advance_balance():
+    return {
+        "message": {
+            "advance_balance": 0.0,
+            "currency": "INR"
+        }
+    }
+
+# Currency
+@app.get("/api/method/hrms.api.get_company_currency")
+@app.post("/api/method/hrms.api.get_company_currency")
+async def get_company_currency():
+    return {"message": "INR"}
+
+@app.get("/api/method/hrms.api.get_currency_symbols")
+@app.post("/api/method/hrms.api.get_currency_symbols")
+async def get_currency_symbols():
+    return {"message": {"INR": "₹", "USD": "$", "EUR": "€"}}
+
+# Notifications
+@app.get("/api/method/hrms.api.get_unread_notifications_count")
+@app.post("/api/method/hrms.api.get_unread_notifications_count")
+async def get_unread_notifications_count():
+    return {"message": 0}
+
+@app.get("/api/method/hrms.api.are_push_notifications_enabled")
+@app.post("/api/method/hrms.api.are_push_notifications_enabled")
+async def are_push_notifications_enabled():
+    return {"message": False}
+
+# Attendance Calendar Events
+@app.get("/api/method/hrms.api.get_attendance_calendar_events")
+@app.post("/api/method/hrms.api.get_attendance_calendar_events")
+async def get_attendance_calendar_events(request: Request):
+    return {"message": {}}
+
+# Employees list
+@app.get("/api/method/hrms.api.get_employees")
+@app.post("/api/method/hrms.api.get_employees")
+async def get_employees():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT name, employee_name, user_id, department, designation, status FROM `tabEmployee` WHERE status = 'Active'")
+                return {"message": cur.fetchall()}
+    except Exception as e:
+        return {"message": []}
+
 # Frappe Client get_list
 @app.get("/api/method/frappe.client.get_list")
 @app.post("/api/method/frappe.client.get_list")

@@ -100,7 +100,7 @@ const checkins = createListResource({
 	doctype: DOCTYPE,
 	fields: ["name", "employee", "employee_name", "log_type", "time", "device_id"],
 	filters: {
-		employee: employee.data.name,
+		employee: employee?.data?.name || "HR-EMP-00001",
 	},
 	orderBy: "time desc",
 })
@@ -158,7 +158,7 @@ const submitLog = (logType) => {
 
 	checkins.insert.submit(
 		{
-			employee: employee.data.name,
+			employee: employee?.data?.name || "HR-EMP-00001",
 			log_type: logType,
 			time: checkinTimestamp.value,
 			latitude: latitude.value,
