@@ -21,6 +21,47 @@ DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
 DB_NAME = os.environ.get("DB_NAME", "hrms")
 PORT = int(os.environ.get("FRAPPE_PORT", 8005))
 
+SUPPORTED_FIELD_TYPES = [
+    "Link",
+    "Select",
+    "Small Text",
+    "Text",
+    "Long Text",
+    "Text Editor",
+    "Table",
+    "Check",
+    "Data",
+    "Float",
+    "Int",
+    "Section Break",
+    "Date",
+    "Time",
+    "Datetime",
+    "Currency",
+]
+
+DOCTYPE_CACHE = {}
+
+def get_doctype_json(doctype: str):
+    if doctype in DOCTYPE_CACHE:
+        return DOCTYPE_CACHE[doctype]
+    slug = doctype.lower().replace(" ", "_")
+    for base in [r"c:\HRMS-1\hrms", r"c:\HRMS-1\erpnext", r"c:\HRMS-1\frappe"]:
+        if not os.path.exists(base):
+            continue
+        for root, dirs, files in os.walk(base):
+            if f"{slug}.json" in files:
+                filepath = os.path.join(root, f"{slug}.json")
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        if data.get("doctype") == "DocType" and data.get("name") == doctype:
+                            DOCTYPE_CACHE[doctype] = data
+                            return data
+                except Exception:
+                    pass
+    return None
+
 app = FastAPI(title="Frappe HRMS Sovereign Backend", version="1.0.0")
 
 app.add_middleware(
@@ -37,7 +78,7 @@ def get_db():
         port=DB_PORT,
         user=DB_USER,
         password=DB_PASSWORD,
-        db=DB_NAME,
+        database=DB_NAME,
         charset="utf8mb4",
         cursorclass=pymysql.cursors.DictCursor,
         autocommit=True
@@ -58,7 +99,6 @@ def verify_password(plain_password: str, stored_hash: str) -> bool:
             salt, expected_hash = parts[1], parts[2]
             computed_hash = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
             return secrets.compare_digest(computed_hash, expected_hash)
-    # Direct comparison fallback
     return secrets.compare_digest(plain_password, stored_hash)
 
 def authenticate_user(username_or_email: str, plain_password: str):
@@ -75,14 +115,12 @@ def authenticate_user(username_or_email: str, plain_password: str):
                 if not user.get("enabled", 1):
                     return None, "User account is disabled"
                 
-                # Check __auth
                 cur.execute(
                     "SELECT password FROM `__auth` WHERE doctype = 'User' AND name IN (%s, %s) AND fieldname = 'password' LIMIT 1",
                     (user["name"], user["email"])
                 )
                 auth = cur.fetchone()
                 if not auth:
-                    # Default bootstrap for Administrator if not yet seeded
                     if (user["name"] == "Administrator" or user["email"] == "admin@example.com") and plain_password in ["admin", "admin123"]:
                         pwd_hash = hash_password(plain_password)
                         for uname in ["Administrator", "admin@example.com"]:
@@ -100,7 +138,7 @@ def authenticate_user(username_or_email: str, plain_password: str):
     except Exception as e:
         return None, str(e)
 
-# Active sessions store: session_id -> user_dict
+# Active sessions store
 ACTIVE_SESSIONS: Dict[str, Dict[str, Any]] = {}
 
 def get_session_user(request: Request) -> Dict[str, Any]:
@@ -156,7 +194,7 @@ async def get_context_for_dev(request: Request):
             "push_relay_server_url": "",
             "sysdefaults": {
                 "company": "My Company",
-                "currency": "USD"
+                "currency": "INR"
             }
         }
     }
@@ -171,10 +209,9 @@ async def get_all_translations():
 @app.get("/api/method/hrms.api.system_settings.get_user_pass_login_disabled")
 @app.post("/api/method/hrms.api.system_settings.get_user_pass_login_disabled")
 async def get_user_pass_login_disabled():
-    # Return 0 so username & password login is active
     return {"message": 0}
 
-# OAuth Providers - Disabled for pure sovereign auth
+# OAuth Providers
 @app.get("/api/method/hrms.api.oauth.oauth_providers")
 @app.post("/api/method/hrms.api.oauth.oauth_providers")
 async def get_oauth_providers():
@@ -284,7 +321,6 @@ async def get_current_employee_info(request: Request):
             "status": "Active"
         }
     else:
-        # Guarantee user_id matches user['name'] for frontend guard check
         employee["user_id"] = user["name"]
 
     return {"message": employee}
@@ -338,6 +374,18 @@ async def get_shift_requests(request: Request):
                 return {"message": rows}
     except Exception as e:
         print(f"Error in get_shift_requests: {e}")
+        return {"message": []}
+
+# Shifts
+@app.get("/api/method/hrms.api.get_shifts")
+@app.post("/api/method/hrms.api.get_shifts")
+async def get_shifts(request: Request):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM `tabShift Assignment` ORDER BY creation desc LIMIT 20")
+                return {"message": cur.fetchall()}
+    except Exception:
         return {"message": []}
 
 # Leave Applications
@@ -435,6 +483,12 @@ async def get_advance_balance():
         }
     }
 
+# Salary Slip Periods
+@app.get("/api/method/hrms.api.get_salary_slip_periods")
+@app.post("/api/method/hrms.api.get_salary_slip_periods")
+async def get_salary_slip_periods():
+    return {"message": []}
+
 # Currency
 @app.get("/api/method/hrms.api.get_company_currency")
 @app.post("/api/method/hrms.api.get_company_currency")
@@ -474,6 +528,121 @@ async def get_employees():
                 return {"message": cur.fetchall()}
     except Exception as e:
         return {"message": []}
+
+# DocType Fields for Dynamic Forms
+@app.get("/api/method/hrms.api.get_doctype_fields")
+@app.post("/api/method/hrms.api.get_doctype_fields")
+async def get_doctype_fields_api(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    doctype = data.get("doctype", "")
+    doc_json = get_doctype_json(doctype)
+    if doc_json and "fields" in doc_json:
+        fields = [f for f in doc_json["fields"] if f.get("fieldtype") in SUPPORTED_FIELD_TYPES and f.get("fieldname") != "amended_from"]
+        return {"message": fields}
+    return {"message": []}
+
+# DocType States
+@app.get("/api/method/hrms.api.get_doctype_states")
+@app.post("/api/method/hrms.api.get_doctype_states")
+async def get_doctype_states_api(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    doctype = data.get("doctype", "")
+    doc_json = get_doctype_json(doctype)
+    states = {}
+    if doc_json and "states" in doc_json:
+        for s in doc_json["states"]:
+            states[s.get("title", "")] = s.get("color", "gray").lower()
+    return {"message": states}
+
+# Permissions
+@app.get("/api/method/frappe.client.has_permission")
+@app.post("/api/method/frappe.client.has_permission")
+async def has_permission(request: Request):
+    return {"message": {"has_permission": True}}
+
+# Search Link for Autocomplete Dropdowns
+@app.get("/api/method/frappe.desk.search.search_link")
+@app.post("/api/method/frappe.desk.search.search_link")
+async def search_link(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    doctype = data.get("doctype", "")
+    txt = data.get("txt", "")
+    table = f"tab{doctype}"
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT name FROM `{table}` WHERE name LIKE %s LIMIT 20", (f"%{txt}%",))
+                rows = cur.fetchall()
+                return {"message": [{"value": r["name"], "description": r["name"]} for r in rows]}
+    except Exception:
+        # Default mock items for essential link types if empty
+        if doctype == "Leave Type":
+            return {"message": [{"value": "Casual Leave", "description": "Casual Leave"}, {"value": "Sick Leave", "description": "Sick Leave"}, {"value": "Privilege Leave", "description": "Privilege Leave"}]}
+        if doctype == "Company":
+            return {"message": [{"value": "My Company", "description": "My Company"}]}
+        if doctype == "Employee":
+            return {"message": [{"value": "HR-EMP-00001", "description": "Abhishek"}]}
+        return {"message": []}
+
+# Reportview Get for Full Paged Lists
+@app.get("/api/method/frappe.desk.reportview.get")
+@app.post("/api/method/frappe.desk.reportview.get")
+async def reportview_get(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = dict(request.query_params)
+    doctype = data.get("doctype")
+    fields = data.get("fields") or ["name"]
+    if isinstance(fields, str):
+        try:
+            fields = json.loads(fields)
+        except Exception:
+            fields = [f.strip("`'\" ") for f in fields.split(",")]
+    
+    clean_fields = []
+    for f in fields:
+        col = f.strip("`'\" ")
+        if "." in col:
+            col = col.split(".")[-1]
+        clean_fields.append(col)
+    
+    table = f"tab{doctype}"
+    limit = int(data.get("page_length") or data.get("limit") or 20)
+    start = int(data.get("start") or 0)
+    order_by = data.get("order_by") or "modified desc"
+    
+    field_clause = ", ".join([f"`{c}`" for c in clean_fields])
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT {field_clause} FROM `{table}` ORDER BY {order_by} LIMIT %s, %s", (start, limit))
+                rows = cur.fetchall()
+                values = [[r.get(c) for c in clean_fields] for r in rows]
+                return {
+                    "message": {
+                        "keys": clean_fields,
+                        "values": values
+                    }
+                }
+    except Exception as e:
+        print(f"reportview error on {doctype}: {e}")
+        return {"message": {"keys": clean_fields, "values": []}}
+
+# Attachments
+@app.get("/api/method/hrms.api.get_attachments")
+@app.post("/api/method/hrms.api.get_attachments")
+async def get_attachments():
+    return {"message": []}
 
 # Frappe Client get_list
 @app.get("/api/method/frappe.client.get_list")
@@ -597,6 +766,21 @@ async def insert_doc(request: Request):
         print(f"Insert error on {table_name}: {e}")
         return {"message": doc}
 
+# Frappe Client delete
+@app.post("/api/method/frappe.client.delete")
+async def delete_doc(request: Request):
+    data = await request.json()
+    doctype = data.get("doctype")
+    name = data.get("name")
+    table_name = f"tab{doctype}"
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"DELETE FROM `{table_name}` WHERE name = %s", (name,))
+                return {"message": "ok"}
+    except Exception as e:
+        return {"message": str(e)}
+
 # Employee Checkin
 @app.post("/api/method/hrms.hr.doctype.employee_checkin.employee_checkin.add_log_based_on_employee_field")
 async def add_checkin_log(request: Request):
@@ -623,7 +807,7 @@ async def add_checkin_log(request: Request):
         print(f"Checkin error: {e}")
     return {"message": doc}
 
-# Catch-all API fallback to prevent UI errors
+# Catch-all API fallback
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def catch_all_api(path: str, request: Request):
     return {"message": {}}
