@@ -97,7 +97,7 @@ function getProxyOptions() {
 	const webserver_port = process.env.FRAPPE_PORT || (config ? config.webserver_port : 8005)
 	console.log(`Frappe sovereign backend webserver port: ${webserver_port}`)
 	return {
-		"^/(app|login|api|assets|files|private)": {
+		"^/(app|desk|login|api|assets|files|private)": {
 			target: `http://127.0.0.1:${webserver_port}`,
 			ws: true,
 			changeOrigin: true,
